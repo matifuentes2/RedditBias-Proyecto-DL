@@ -20,7 +20,7 @@ import os
 import math
 
 login(token=os.environ["HUGGINGFACE_TOKEN"])
-    
+
 def get_perplexity_list(df, model, tokenizer, batch_size=8):
     """
     Gets perplexities of all sentences in a DataFrame based on given model
@@ -43,8 +43,14 @@ def get_perplexity_list(df, model, tokenizer, batch_size=8):
         inputs = {k: v.to(model.device) for k, v in inputs.items()}
         with torch.no_grad():
             outputs = model(**inputs, labels=inputs["input_ids"])
-        perplexities = [math.exp(loss.item()) for loss in outputs.loss]
-        perplexity_list.extend(perplexities)
+        
+        # Calculate perplexity for the entire batch
+        loss = outputs.loss.item()
+        perplexity = math.exp(loss)
+        
+        # Extend the perplexity list with the same perplexity for each item in the batch
+        perplexity_list.extend([perplexity] * len(batch))
+    
     return perplexity_list
 
 def get_perplexity_list_test(df, m, t, dem, subset_size=10):
