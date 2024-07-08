@@ -36,9 +36,11 @@ def get_perplexity_list(df, model, tokenizer, batch_size=8):
     List of sentence perplexities
     """
     perplexity_list = []
+    model.eval()
     for i in range(0, len(df), batch_size):
         batch = df['comments_processed'][i:i+batch_size].tolist()
-        inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True)
+        inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        inputs = {k: v.to(model.device) for k, v in inputs.items()}
         with torch.no_grad():
             outputs = model(**inputs, labels=inputs["input_ids"])
         perplexities = [math.exp(loss.item()) for loss in outputs.loss]
@@ -154,7 +156,9 @@ model_id = "meta-llama/Meta-Llama-3-8B" # 'bert_base_uncased' # 'gpt2'
     # '/Users/soumya/Documents/Mannheim-Data-Science/Sem_4/MasterThesis/models/religion2/lm_loss_swapped_targets/'
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
-pretrained_model = AutoModelForCausalLM.from_pretrained(
+tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForCausalLM.from_pretrained(
     model_id, 
     use_auth_token=True,
     torch_dtype=torch.float16,
@@ -163,10 +167,15 @@ pretrained_model = AutoModelForCausalLM.from_pretrained(
     offload_folder="offload"
 )
 
-model = pipeline("text-generation", model=pretrained_model, tokenizer=tokenizer)
-def generate_text(prompt, model):
-    generated_output = model(prompt, max_length=50, num_return_sequences=1, truncation=True)[0]
-    return generated_output['generated_text']
+#model = pipeline("text-generation", model=pretrained_model, tokenizer=tokenizer)
+model.config.pad_token_id = model.config.eos_token_id
+
+def generate_text(prompt, model, tokenizer):
+    inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+    with torch.no_grad():
+        outputs = model.generate(**inputs, max_length=100, num_return_sequences=1)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 if ON_SET:
     logging.basicConfig(filename=exp_path+'measure_bias'+demo+'.log', filemode='w', level=logging.DEBUG, format='%(asctime)s %(message)s')
