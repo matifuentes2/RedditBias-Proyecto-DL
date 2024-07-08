@@ -8,6 +8,7 @@ from utils import helper_functions as helpers
 from transformers import AutoModelWithLMHead, AutoTokenizer, AutoModelForMaskedLM, AutoModelForCausalLM
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 import huggingface_hub
+from huggingface_hub import login
 import time
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -15,8 +16,9 @@ import logging
 import numpy as np
 from outliers import smirnov_grubbs as grubbs
 import torch
+import os
 
-
+login(token=os.environ["HUGGINGFACE_TOKEN"])
 
 
 def get_perplexity_list(df,model,tokenizer):
