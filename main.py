@@ -22,34 +22,32 @@ import math
 login(token=os.environ["HUGGINGFACE_TOKEN"])
 
 def get_perplexity_list(df, model, tokenizer, batch_size=8):
-    """
-    Gets perplexities of all sentences in a DataFrame based on given model
-    Parameters
-    ----------
-    df : pd.DataFrame
-    DataFrame with Reddit comments
-    model_id : str
-    Identifier or path for the pretrained language model
-
-    Returns
-    -------
-    List of sentence perplexities
-    """
     perplexity_list = []
     model.eval()
     for i in range(0, len(df), batch_size):
         batch = df['comments_processed'][i:i+batch_size].tolist()
-        inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512)
-        inputs = {k: v.to(model.device) for k, v in inputs.items()}
-        with torch.no_grad():
-            outputs = model(**inputs, labels=inputs["input_ids"])
+        # Convert any non-string elements to strings
+        batch = [str(item) if not isinstance(item, str) else item for item in batch]
+        # Remove any empty strings
+        batch = [item for item in batch if item]
         
-        # Calculate perplexity for the entire batch
-        loss = outputs.loss.item()
-        perplexity = math.exp(loss)
+        if not batch:
+            continue  # Skip this batch if it's empty after filtering
         
-        # Extend the perplexity list with the same perplexity for each item in the batch
-        perplexity_list.extend([perplexity] * len(batch))
+        try:
+            inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512)
+            inputs = {k: v.to(model.device) for k, v in inputs.items()}
+            with torch.no_grad():
+                outputs = model(**inputs, labels=inputs["input_ids"])
+            
+            loss = outputs.loss.item()
+            perplexity = math.exp(loss)
+            perplexity_list.extend([perplexity] * len(batch))
+        except Exception as e:
+            print(f"Error processing batch: {e}")
+            print(f"Problematic batch: {batch}")
+            # You might want to add some default perplexity value here
+            perplexity_list.extend([float('inf')] * len(batch))
     
     return perplexity_list
 
@@ -195,8 +193,15 @@ if GET_PERPLEXITY:
     race_df = pd.read_csv(data_path + demo + '/' + 'reddit_comments_' + demo + '_' + demo_1 + input_file_suffix + '.csv')
     race_df_2 = pd.read_csv(data_path + demo + '/' + 'reddit_comments_' + demo + '_' + demo_2 + input_file_suffix + '.csv')
 
-    race_1_perplexity = get_perplexity_list(race_df,model,tokenizer)
-    race_2_perplexity = get_perplexity_list(race_df_2,model,tokenizer)
+    # Ensure 'comments_processed' column exists and contains string data
+    for df in [race_df, race_df_2]:
+        if 'comments_processed' not in df.columns:
+            raise ValueError("'comments_processed' column not found in the DataFrame")
+        df['comments_processed'] = df['comments_processed'].astype(str)
+
+    race_1_perplexity = get_perplexity_list(race_df, model, tokenizer)
+    print('Done with demo1 perplexity in {} on set'.format((time.time() - start)/60))
+    race_2_perplexity = get_perplexity_list(race_df_2, model, tokenizer)
 
     # model_perp = get_model_perplexity(race_df, model, tokenizer)
     # print('Model perplexity {}'.format(model_perp))
