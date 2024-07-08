@@ -164,7 +164,7 @@ pretrained_model = AutoModelForCausalLM.from_pretrained(
     offload_folder="offload"
 )
 
-model = pipeline("text-generation", model=pretrained_model, tokenizer=tokenizer, device=0 if torch.cuda.is_available() else -1, torch_dtype=torch.float16, device_map="auto")
+model = pipeline("text-generation", model=pretrained_model, tokenizer=tokenizer)
 def generate_text(prompt, model):
     # Initialize tokenizer and pipeline for text generation
     
