@@ -149,12 +149,22 @@ output_file_suffix = '_perplex_phrase_biased' # '_perplex'
 
 
 debiasing_head = 'EqualisingLoss' # 'CosineDist'
-pretrained_model = "meta-llama/Meta-Llama-3-8B" # 'bert_base_uncased' # 'gpt2'
+model_id = "meta-llama/Meta-Llama-3-8B" # 'bert_base_uncased' # 'gpt2'
     # '/Users/soumya/Documents/Mannheim-Data-Science/Sem_4/MasterThesis/models/religion1/eq_loss_0/'
     # 'microsoft/DialoGPT-small'
     # '/Users/soumya/Documents/Mannheim-Data-Science/Sem_4/MasterThesis/models/religion2/lm_loss_swapped_targets/'
-tokenizer = AutoTokenizer.from_pretrained(pretrained_model)
-model = pipeline("text-generation", model=pretrained_model, tokenizer=tokenizer, device=0 if torch.cuda.is_available() else -1)
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+pretrained_model = AutoModelForCausalLM.from_pretrained(
+    model_id, 
+    use_auth_token=True,
+    torch_dtype=torch.float16,
+    device_map="auto",
+    low_cpu_mem_usage=True,
+    offload_folder="offload"
+)
+
+model = pipeline("text-generation", model=pretrained_model, tokenizer=tokenizer, device=0 if torch.cuda.is_available() else -1, torch_dtype=torch.float16, device_map="auto")
 def generate_text(prompt, model):
     # Initialize tokenizer and pipeline for text generation
     
