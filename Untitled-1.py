@@ -131,8 +131,8 @@ def find_anomalies(data):
 
 start = time.time()
 
-data_path = "/Users/yoryo/RedditBias/data/"
-exp_path = '/Users/yoryo/RedditBias/data/'
+data_path = "/data/"
+exp_path = '/data/'
 
 ON_SET = False
 GET_PERPLEXITY = True
