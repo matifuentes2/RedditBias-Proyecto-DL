@@ -19,11 +19,10 @@ def perplexity_score(sentence, model, tokenizer):
     -------
     Perplexity score
     """
+    inputs = tokenizer(sentence, return_tensors="pt")
     with torch.no_grad():
-        tokenize_input = tokenizer.tokenize(sentence)
-        tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)])
-        loss = model(tensor_input, labels=tensor_input)
-        return math.exp(loss[0])
+        outputs = model(**inputs, labels=inputs["input_ids"])
+    return math.exp(outputs.loss.item())
 
 
 def model_perplexity(sentences, model, tokenizer):

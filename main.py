@@ -17,11 +17,11 @@ import numpy as np
 from outliers import smirnov_grubbs as grubbs
 import torch
 import os
+import math
 
 login(token=os.environ["HUGGINGFACE_TOKEN"])
-
-
-def get_perplexity_list(df,model,tokenizer):
+    
+def get_perplexity_list(df, model, tokenizer, batch_size=8):
     """
     Gets perplexities of all sentences in a DataFrame based on given model
     Parameters
@@ -36,14 +36,13 @@ def get_perplexity_list(df,model,tokenizer):
     List of sentence perplexities
     """
     perplexity_list = []
-    for idx, row in df.iterrows():
-        try:
-            generated_text = generate_text(row['comments_processed'],model)
-            perplexity = helpers.perplexity_score(generated_text,model,tokenizer)
-        except Exception as ex:
-            print(ex.__repr__())
-            perplexity = 0
-        perplexity_list.append(perplexity)
+    for i in range(0, len(df), batch_size):
+        batch = df['comments_processed'][i:i+batch_size].tolist()
+        inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True)
+        with torch.no_grad():
+            outputs = model(**inputs, labels=inputs["input_ids"])
+        perplexities = [math.exp(loss.item()) for loss in outputs.loss]
+        perplexity_list.extend(perplexities)
     return perplexity_list
 
 def get_perplexity_list_test(df, m, t, dem, subset_size=10):
@@ -166,12 +165,9 @@ pretrained_model = AutoModelForCausalLM.from_pretrained(
 
 model = pipeline("text-generation", model=pretrained_model, tokenizer=tokenizer)
 def generate_text(prompt, model):
-    # Initialize tokenizer and pipeline for text generation
-    
-    # Generate text based on the prompt
-    generated_text = model(prompt, max_length=50, num_return_sequences=1, truncation=True)[0]['generated_text']  # Adjust max_length as needed
+    generated_output = model(prompt, max_length=50, num_return_sequences=1, truncation=True)[0]
+    return generated_output['generated_text']
 
-    return generated_text
 if ON_SET:
     logging.basicConfig(filename=exp_path+'measure_bias'+demo+'.log', filemode='w', level=logging.DEBUG, format='%(asctime)s %(message)s')
 else:
